@@ -1,8 +1,11 @@
 package com.gunder.widget
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.widget.RemoteViews
 import com.gunder.widget.utils.NumberGenerator
 
@@ -10,6 +13,7 @@ import com.gunder.widget.utils.NumberGenerator
  * Implementation of App Widget functionality.
  */
 class RandomGenerator : AppWidgetProvider() {
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -28,6 +32,25 @@ class RandomGenerator : AppWidgetProvider() {
     override fun onDisabled(context: Context) {
         // Enter relevant functionality for when the last widget is disabled
     }
+
+    override fun onReceive(context: Context?, intent: Intent?) {
+        super.onReceive(context, intent)
+        if (intent != null) {
+            if (intent.action == WIDGET_CLICK) {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val views = RemoteViews(context?.packageName, R.layout.random_generator)
+                val lastUpdate = "Random: " + NumberGenerator.generate(100)
+                val appWidgetId = intent.getIntExtra(WIDGET_ID_EXTRA, 0)
+                views.setTextViewText(R.id.appwidget_text, lastUpdate)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            }
+        }
+    }
+
+    companion object {
+        const val WIDGET_CLICK = "android.appwidget.action.APPWIDGET_UPDATE"
+        const val WIDGET_ID_EXTRA = "widget_id_extra"
+    }
 }
 
 internal fun updateAppWidget(
@@ -35,8 +58,22 @@ internal fun updateAppWidget(
     appWidgetManager: AppWidgetManager,
     appWidgetId: Int
 ) {
+    val intent = Intent(context, RandomGenerator::class.java)
+    intent.action = RandomGenerator.WIDGET_CLICK
+    intent.putExtra(RandomGenerator.WIDGET_ID_EXTRA, appWidgetId)
+    val pendingIntent = PendingIntent.getBroadcast(
+        context, appWidgetId, intent,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            0
+        }
+    )
+
     val lastUpdate = "Random: " + NumberGenerator.generate(100)
     val views = RemoteViews(context.packageName, R.layout.random_generator)
     views.setTextViewText(R.id.appwidget_text, lastUpdate)
+    views.setOnClickPendingIntent(R.id.btn_click, pendingIntent)
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }
+
